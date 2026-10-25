@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* M0: chỉ nền tảng. Design tokens Minh Kỳ (docs/UI_GUIDE.md §2) được thêm ở M1. */
+body {
+  font-family: system-ui, sans-serif;
+}

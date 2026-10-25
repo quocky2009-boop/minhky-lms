@@ -19,16 +19,17 @@ Browser ──► Next.js (Vercel)  ──► Supabase
 
 ## 2. Ranh giới tin cậy
 
-| Việc | Nơi quyết định | Ghi chú |
-|---|---|---|
-| Ai là ai, vai trò, phạm vi | Postgres (`user_role_assignments`) | Không đọc từ `user_metadata`; JWT chỉ cung cấp `auth.uid()` |
-| Được đọc/ghi hàng nào | RLS | Mọi bảng exposed bật RLS, mặc định từ chối |
-| Cột nhạy cảm (đáp án) | Bảng riêng, không cấp RLS cho learner | RLS lọc hàng, không che cột |
-| Bắt đầu/nộp/chấm bài thi | RPC Postgres | Giao dịch nguyên tử, khóa hàng, idempotent |
-| Giờ làm bài | `now()` của DB | Không tin giờ client |
-| Hiển thị/UX | Client | Chỉ là tiện ích; ẩn nút không phải kiểm soát quyền |
+| Việc                       | Nơi quyết định                        | Ghi chú                                                     |
+| -------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| Ai là ai, vai trò, phạm vi | Postgres (`user_role_assignments`)    | Không đọc từ `user_metadata`; JWT chỉ cung cấp `auth.uid()` |
+| Được đọc/ghi hàng nào      | RLS                                   | Mọi bảng exposed bật RLS, mặc định từ chối                  |
+| Cột nhạy cảm (đáp án)      | Bảng riêng, không cấp RLS cho learner | RLS lọc hàng, không che cột                                 |
+| Bắt đầu/nộp/chấm bài thi   | RPC Postgres                          | Giao dịch nguyên tử, khóa hàng, idempotent                  |
+| Giờ làm bài                | `now()` của DB                        | Không tin giờ client                                        |
+| Hiển thị/UX                | Client                                | Chỉ là tiện ích; ẩn nút không phải kiểm soát quyền          |
 
 ### RPC và SECURITY DEFINER
+
 Đáp án ở bảng không ai (ngoài admin) đọc được nên việc chấm phải chạy bằng quyền cao hơn learner. Chỉ cho phép một **tập nhỏ RPC cố định** dạng `SECURITY DEFINER`:
 `start_exam_attempt`, `save_attempt_answer`, `submit_exam_attempt`, `expire_overdue_attempts`, `issue_certificate`.
 Ràng buộc bắt buộc: `SET search_path = ''` (tên đối tượng đầy đủ schema), kiểm tra `auth.uid()` và quyền bên trong hàm, `REVOKE ALL FROM PUBLIC` rồi `GRANT EXECUTE` đúng role, có pgTAP test truy cập trái phép. Không dùng SECURITY DEFINER cho truy vấn thông thường — dùng view `security_invoker` hoặc RLS.
@@ -110,12 +111,12 @@ Cron mỗi phút ──► expire_overdue_attempts() nộp các lượt quá dea
 
 ## 7. Storage
 
-| Bucket | Nội dung | Truy cập |
-|---|---|---|
-| `course-media` | video, PDF, ảnh bìa | private; Storage policy theo quyền học khóa; signed URL ~ vài chục phút |
-| `question-media` | ảnh trong câu hỏi | private; chỉ attempt đang làm/Admin; signed URL ngắn |
-| `certificates` | PDF chứng chỉ | private; chủ sở hữu/Admin/Manager trong phạm vi |
-| `branding` | logo, mẫu chứng chỉ | admin ghi; đọc qua signed URL hoặc public riêng nếu không nhạy cảm (quyết định ở M9) |
+| Bucket           | Nội dung            | Truy cập                                                                             |
+| ---------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| `course-media`   | video, PDF, ảnh bìa | private; Storage policy theo quyền học khóa; signed URL ~ vài chục phút              |
+| `question-media` | ảnh trong câu hỏi   | private; chỉ attempt đang làm/Admin; signed URL ngắn                                 |
+| `certificates`   | PDF chứng chỉ       | private; chủ sở hữu/Admin/Manager trong phạm vi                                      |
+| `branding`       | logo, mẫu chứng chỉ | admin ghi; đọc qua signed URL hoặc public riêng nếu không nhạy cảm (quyết định ở M9) |
 
 Kiểm tra loại/kích thước tệp ở server trước khi cấp upload URL. Không dùng URL công khai cho nội dung khóa học.
 
@@ -125,12 +126,12 @@ Bảng `audit_logs` append-only (không UPDATE/DELETE cho mọi role ứng dụn
 
 ## 9. Kiểm thử
 
-| Tầng | Công cụ | Nội dung |
-|---|---|---|
-| Unit | Vitest | Chấm điểm, tính hạn thi, tiến độ, quy tắc cách tính điểm, định dạng ngày/múi giờ, Zod schema |
-| DB/RLS | pgTAP (Supabase) + Vitest integration | Ma trận quyền: learner/manager/admin đọc-ghi bằng ID trực tiếp; learner không đọc được đáp án; RPC từ chối trái phép |
-| Integration | Vitest + Supabase local | Luồng thi nguyên tử, nộp trùng đồng thời, hết giờ, snapshot không đổi khi sửa câu hỏi |
-| E2E | Playwright | Learner: đăng nhập → học → thi → chứng chỉ; Admin: tạo khóa/câu hỏi/bài thi/phân công; Manager: báo cáo; mobile viewport |
+| Tầng        | Công cụ                               | Nội dung                                                                                                                 |
+| ----------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Unit        | Vitest                                | Chấm điểm, tính hạn thi, tiến độ, quy tắc cách tính điểm, định dạng ngày/múi giờ, Zod schema                             |
+| DB/RLS      | pgTAP (Supabase) + Vitest integration | Ma trận quyền: learner/manager/admin đọc-ghi bằng ID trực tiếp; learner không đọc được đáp án; RPC từ chối trái phép     |
+| Integration | Vitest + Supabase local               | Luồng thi nguyên tử, nộp trùng đồng thời, hết giờ, snapshot không đổi khi sửa câu hỏi                                    |
+| E2E         | Playwright                            | Learner: đăng nhập → học → thi → chứng chỉ; Admin: tạo khóa/câu hỏi/bài thi/phân công; Manager: báo cáo; mobile viewport |
 
 ## 10. CI/CD và môi trường
 
@@ -141,11 +142,11 @@ Bảng `audit_logs` append-only (không UPDATE/DELETE cho mọi role ứng dụn
 
 ## 11. Quyết định kỹ thuật & lý do (tóm tắt)
 
-| Quyết định | Lý do |
-|---|---|
-| Đáp án ở bảng riêng | RLS không che cột |
-| Chấm bằng RPC nguyên tử | Chống nộp trùng/race, đồng hồ DB |
-| Snapshot theo lượt thi | Sửa ngân hàng câu hỏi không làm sai lịch sử |
+| Quyết định                          | Lý do                                                |
+| ----------------------------------- | ---------------------------------------------------- |
+| Đáp án ở bảng riêng                 | RLS không che cột                                    |
+| Chấm bằng RPC nguyên tử             | Chống nộp trùng/race, đồng hồ DB                     |
+| Snapshot theo lượt thi              | Sửa ngân hàng câu hỏi không làm sai lịch sử          |
 | Gán vai trò theo phạm vi cây đơn vị | Manager thấy đúng chi nhánh/đơn vị mà không hardcode |
-| Repository interface | UI dựng trước bằng mock, đổi nguồn không viết lại |
-| Không SCORM/OJT/AI ở MVP | Đúng phạm vi đã chốt |
+| Repository interface                | UI dựng trước bằng mock, đổi nguồn không viết lại    |
+| Không SCORM/OJT/AI ở MVP            | Đúng phạm vi đã chốt                                 |
